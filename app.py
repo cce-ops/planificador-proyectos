@@ -40,7 +40,7 @@ if st.button("Calcular y Generar Diagramas"):
             ef[nodo] = es[nodo] + G.nodes[nodo]["dur"]
             
         duracion_total = max(ef.values())
-        st.success(f"**Duración total del proyecto estimado:** {duracion_total} días")
+        st.success(f"**Duración total del proyecto estimado:** {duracion_total} días laborables")
         
         # 3. Cálculo hacia atrás (Tiempos Last: ti*, tj*)
         ls, lf = {}, {}
@@ -79,7 +79,7 @@ if st.button("Calcular y Generar Diagramas"):
 
         # 5. Generación del Diagrama de Gantt
         fecha_inicio_proyecto = pd.to_datetime(date.today())
-        # Configuración de días laborables efectivos (lunes a viernes)
+        # Configuración de días laborables efectivos
         bday = CustomBusinessDay(weekmask='Mon Tue Wed Thu Fri')
         
         df_gantt = []
@@ -100,6 +100,19 @@ if st.button("Calcular y Generar Diagramas"):
                                 title="Diagrama de Gantt (Días laborables)")
         fig_gantt.update_yaxes(autorange="reversed")
         st.plotly_chart(fig_gantt, use_container_width=True)
+
+        # 6. Visualización del Grafo Lógico (Red PERT)
+        st.write("**Diagrama de Red Lógica (PERT)**")
+        fig, ax = plt.subplots(figsize=(8, 4))
+        posiciones = nx.spring_layout(G, seed=42)
+        
+        # Identificar nodos críticos para colorearlos en rojo
+        nodos_criticos = [nodo for nodo in orden_topologico if ls[nodo] - es[nodo] == 0]
+        colores_nodos = ["#e74c3c" if nodo in nodos_criticos else "#3498db" for nodo in G.nodes()]
+        
+        nx.draw(G, posiciones, with_labels=True, node_size=2000, node_color=colores_nodos, 
+                font_size=12, font_weight="bold", edge_color="gray", arrows=True, ax=ax)
+        st.pyplot(fig)
 
     except nx.NetworkXUnfeasible:
         st.error("Error: Se ha detectado un bucle o dependencia circular en las tareas.")
