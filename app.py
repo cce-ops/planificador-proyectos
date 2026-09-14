@@ -66,17 +66,20 @@ if st.button("Calcular Proyecto Completo"):
 
         st.success(f"**Duración total esperada del proyecto ($T_e$):** {duracion_proyecto:.2f} días")
 
-        # ---------------------------------------------------------
+      # ---------------------------------------------------------
         # MATRIZ DE ZADERENKO
         # ---------------------------------------------------------
         st.markdown("### 2. Matriz de Zaderenko")
-        matriz = pd.DataFrame(index=nodos, columns=nodos, data="")
+        
+        # Se añade dtype=object para permitir texto vacío y números simultáneamente
+        matriz = pd.DataFrame(index=nodos, columns=nodos, data="", dtype=object)
+        
         for u, v, data in G.edges(data=True):
             matriz.loc[u, v] = round(data['te'], 2)
             
         matriz.loc['t_i*'] = [round(t_last[n], 2) for n in nodos]
         matriz['t_j'] = [round(t_early[n], 2) for n in nodos] + [""]
-        st.dataframe(matriz.fillna(""), use_container_width=True)
+        st.dataframe(matriz, use_container_width=True)
 
         # ---------------------------------------------------------
         # TABLA DE RESULTADOS Y CAMINO CRÍTICO
