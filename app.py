@@ -27,6 +27,8 @@ with tab1:
     df_basico = pd.DataFrame(datos_basicos)
     df_editado_basico = st.data_editor(df_basico, num_rows="dynamic", use_container_width=True, key="tabla_basica")
 
+    fecha_inicio_basico = st.date_input("Selecciona la fecha de inicio del proyecto:", date.today(), key="fecha_ini_basico")
+
     if st.button("Calcular Proyecto Básico", key="btn_basico"):
         G_basico = nx.DiGraph()
         for _, row in df_editado_basico.iterrows():
@@ -47,7 +49,13 @@ with tab1:
                 ef[nodo] = es[nodo] + G_basico.nodes[nodo]["dur"]
                 
             duracion_total = max(ef.values())
-            st.success(f"**Duración total del proyecto:** {duracion_total} días laborables")
+            
+            # Cálculo de la fecha de fin
+            bday = CustomBusinessDay(weekmask='Mon Tue Wed Thu Fri')
+            fecha_inicio_dt = pd.to_datetime(fecha_inicio_basico)
+            fecha_fin_dt = fecha_inicio_dt + bday * int(duracion_total)
+            
+            st.success(f"**Duración total:** {duracion_total} días laborables | **Fecha de finalización:** {fecha_fin_dt.strftime('%d/%m/%Y')}")
             
             ls, lf = {}, {}
             for nodo in reversed(orden_topologico):
@@ -72,14 +80,12 @@ with tab1:
             col1_bas, col2_bas = st.columns(2)
             # Gantt
             with col1_bas:
-                bday = CustomBusinessDay(weekmask='Mon Tue Wed Thu Fri')
-                fecha_ini = pd.to_datetime(date.today())
                 gantt_data = []
                 for nodo in orden_topologico:
                     gantt_data.append({
                         "Tarea": nodo,
-                        "Inicio": fecha_ini + bday * int(es[nodo]),
-                        "Fin": fecha_ini + bday * int(ef[nodo]),
+                        "Inicio": fecha_inicio_dt + bday * int(es[nodo]),
+                        "Fin": fecha_inicio_dt + bday * int(ef[nodo]),
                         "Crítica": "Sí" if ls[nodo] - es[nodo] == 0 else "No"
                     })
                 fig_gantt_b = px.timeline(pd.DataFrame(gantt_data), x_start="Inicio", x_end="Fin", y="Tarea", 
@@ -117,6 +123,8 @@ with tab2:
     df_avanz = pd.DataFrame(datos_avanzados)
     df_editado_avanz = st.data_editor(df_avanz, num_rows="dynamic", use_container_width=True, key="tabla_avanzada")
 
+    fecha_inicio_avanzado = st.date_input("Selecciona la fecha de inicio del proyecto:", date.today(), key="fecha_ini_avanz")
+
     if st.button("Calcular Proyecto Avanzado", key="btn_avanz"):
         G_avanz = nx.DiGraph()
         for _, row in df_editado_avanz.iterrows():
@@ -139,6 +147,13 @@ with tab2:
             
             duracion_proy = t_early[nodos[-1]]
             
+            # Cálculo de fecha fin y días laborables
+            bday = CustomBusinessDay(weekmask='Mon Tue Wed Thu Fri')
+            fecha_inicio_dt = pd.to_datetime(fecha_inicio_avanzado)
+            fecha_fin_dt = fecha_inicio_dt + bday * int(duracion_proy)
+            
+            st.success(f"**Duración total esperada ($T_e$):** {duracion_proy:.2f} días laborables | **Fecha de finalización:** {fecha_fin_dt.strftime('%d/%m/%Y')}")
+
             t_last = {n: duracion_proy for n in nodos}
             for n in reversed(nodos):
                 succ = list(G_avanz.successors(n))
@@ -169,8 +184,6 @@ with tab2:
                     "Hsi": round(t_last[u] - t_early[u], 2), "Hsj": round(t_last[v] - t_early[v], 2),
                     "HTij": round(ht, 2), "CC": "CC" if is_critical else ""
                 })
-
-            st.success(f"**Duración total esperada ($T_e$):** {duracion_proy:.2f} días")
             
             # Gráficos y Tablas
             col1_a, col2_a = st.columns(2)
@@ -190,7 +203,7 @@ with tab2:
                 st.markdown("**Probabilidad de Cumplimiento (Estadística)**")
                 desv = np.sqrt(var_proy)
                 st.write(f"Varianza ($\sigma^2$): {var_proy:.2f} | Desviación ($\sigma$): {desv:.2f}")
-                plazo_obj = st.number_input("Plazo objetivo (días):", value=float(duracion_proy)+1)
+                plazo_obj = st.number_input("Plazo objetivo (días laborables):", value=float(duracion_proy)+1)
                 if desv > 0:
                     prob = stats.norm.cdf((plazo_obj - duracion_proy) / desv) * 100
                     st.info(f"Probabilidad de éxito: **{prob:.2f}%**")
@@ -212,15 +225,13 @@ with tab2:
                 st.pyplot(fig_a)
 
                 st.markdown("**Diagrama de Gantt**")
-                bday = CustomBusinessDay(weekmask='Mon Tue Wed Thu Fri')
-                fecha_ini_dt = pd.to_datetime(date.today())
                 cal_res = []
                 for res in tabla_res_avanz:
                     if res["te"] > 0:
                         cal_res.append({
                             "Actividad": res["Actividad"],
-                            "Inicio": fecha_ini_dt + bday * int(res["ti"]),
-                            "Fin": fecha_ini_dt + bday * int(res["tj"]),
+                            "Inicio": fecha_inicio_dt + bday * int(res["ti"]),
+                            "Fin": fecha_inicio_dt + bday * int(res["tj"]),
                             "Crítica": "Sí" if res["CC"] == "CC" else "No"
                         })
                 fig_gantt_a = px.timeline(pd.DataFrame(cal_res), x_start="Inicio", x_end="Fin", y="Actividad", 
